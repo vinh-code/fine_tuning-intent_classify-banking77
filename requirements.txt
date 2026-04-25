@@ -1,0 +1,11 @@
+unsloth
+torch
+transformers
+trl
+datasets
+peft
+bitsandbytes
+scikit-learn
+pandas
+pyyaml
+accelerate
