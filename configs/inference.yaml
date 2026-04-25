@@ -3,7 +3,7 @@
 
 model:
   checkpoint_path: "model_checkpoint"   # Path to the saved LoRA/PEFT checkpoint folder
-  max_seq_length: 512                   # Must match training max_seq_length
+  max_seq_length: 1024                  # Must match training max_seq_length
   load_in_4bit: true                    # Keep 4-bit for memory efficiency
 
 data:

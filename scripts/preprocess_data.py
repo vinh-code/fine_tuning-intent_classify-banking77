@@ -19,7 +19,6 @@ import random
 import yaml
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from collections import Counter
 
 # Banking77 raw CSV hosted on PolyAI's GitHub (same data as HuggingFace)
 _BANKING77_BASE = (
@@ -53,32 +52,31 @@ def load_banking77_from_github():
     return train_df, test_df
 
 
-def sample_intents_from_df(train_df, num_intents: int):
+def build_label_mappings(df):
     """
-    Select top-K intents by frequency from the train DataFrame.
-    Returns label mappings.
+    Build label mappings from ALL unique intents in the DataFrame.
+    Returns intent_set, id2label, label2id.
     """
-    counter     = Counter(train_df["category"])
-    top_intents = [cat for cat, _ in counter.most_common(num_intents)]
+    all_intents = sorted(df["category"].unique())  # sorted for reproducibility
+    num_intents = len(all_intents)
 
-    print(f"Selected {len(top_intents)} intents out of {train_df['category'].nunique()}")
-    print(f"Intents: {top_intents[:10]} ...")
+    print(f"Using all {num_intents} intents from BANKING77")
+    print(f"Intents: {all_intents[:10]} ...")
 
-    label2id = {lbl: i for i, lbl in enumerate(top_intents)}
+    label2id = {lbl: i for i, lbl in enumerate(all_intents)}
     id2label = {i: lbl for lbl, i in label2id.items()}
-    return set(top_intents), id2label, label2id
+    return set(all_intents), id2label, label2id
 
 
-def filter_and_format_df(df, intent_set: set, label2id: dict, id2label: dict):
-    """Filter a DataFrame to selected intents and return records list."""
+def format_df(df, label2id):
+    """Convert a DataFrame to records list with label IDs."""
     records = []
     for _, row in df.iterrows():
-        if row["category"] in intent_set:
-            label_id = label2id[row["category"]]
-            records.append({
-                "text":     normalize_text(row["text"]),
-                "label_id": label_id,
-            })
+        label_id = label2id[row["category"]]
+        records.append({
+            "text":     normalize_text(row["text"]),
+            "label_id": label_id,
+        })
     return records
 
 
@@ -110,9 +108,7 @@ def main(config_path: str):
     config = load_config(config_path)
 
     # ── Config values ─────────────────────────────────────────────────────
-    num_intents = config["data"]["num_intents"]
     val_size    = config["data"].get("val_size", 0.1)   # 10% of train → val
-    test_size   = config["data"]["test_size"]
     seed        = config["data"]["random_seed"]
     out_dir     = "sample_data"
     train_out   = config["data"]["train_path"]
@@ -129,21 +125,20 @@ def main(config_path: str):
     print(f"  Train size: {len(raw_train_df)} | Test size: {len(raw_test_df)}")
     print(f"  Total intents: {raw_train_df['category'].nunique()}")
 
-    # ── 2. Sample K intents ───────────────────────────────────────────────
-    print(f"\n[2/5] Sampling top-{num_intents} intents by frequency...")
-    intent_set, id2label, label2id = sample_intents_from_df(
-        raw_train_df, num_intents=num_intents
-    )
+    # ── 2. Build label mappings (ALL intents) ────────────────────────────
+    print(f"\n[2/5] Building label mappings for all intents...")
+    intent_set, id2label, label2id = build_label_mappings(raw_train_df)
+    num_intents = len(intent_set)
     # Build ordered intent list & system prompt (used in every example)
     intent_list   = [id2label[i] for i in range(len(id2label))]
     system_prompt = build_system_prompt(intent_list)
 
-    # ── 3. Filter & format splits ──────────────────────────────────────────
-    print("\n[3/5] Filtering and normalizing data...")
-    train_records = filter_and_format_df(raw_train_df, intent_set, label2id, id2label)
-    test_records  = filter_and_format_df(raw_test_df,  intent_set, label2id, id2label)
-    print(f"  Filtered train: {len(train_records)} samples")
-    print(f"  Filtered test : {len(test_records)} samples")
+    # ── 3. Format data ────────────────────────────────────────────────────
+    print("\n[3/5] Normalizing data...")
+    train_records = format_df(raw_train_df, label2id)
+    test_records  = format_df(raw_test_df,  label2id)
+    print(f"  Train: {len(train_records)} samples")
+    print(f"  Test : {len(test_records)} samples")
 
     # ── 4. Add label names and SFT prompts (ChatML format) ────────────────
     print("\n[4/5] Adding label names and ChatML-formatted prompts...")
@@ -192,7 +187,7 @@ def main(config_path: str):
 
     # ── Summary ───────────────────────────────────────────────────────────
     print("\n─── Summary ───────────────────────────────────")
-    print(f"  Intents selected : {num_intents}")
+    print(f"  Intents used     : {num_intents} (all)")
     print(f"  Train samples    : {len(train_df)}")
     print(f"  Val samples      : {len(val_df)}")
     print(f"  Test samples     : {len(test_df)}")
