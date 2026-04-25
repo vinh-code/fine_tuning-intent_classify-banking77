@@ -23,7 +23,7 @@ lora:
 training:
   per_device_train_batch_size: 2    # Giảm từ 4→2 vì seq_length=1024 tốn VRAM hơn
   gradient_accumulation_steps: 8    # Tăng từ 4→8 → Effective batch = 2 x 8 = 16 (giữ nguyên)
-  num_train_epochs: 15             # Tăng từ 8→15, early stopping sẽ dừng sớm nếu không cải thiện
+  num_train_epochs: 8              # Tăng từ 5→8, early stopping sẽ dừng sớm nếu không cải thiện
   learning_rate: 2e-4              # Tăng từ 5e-5→2e-4 (Unsloth recommended) cho 77 classes
   warmup_ratio: 0.05               # 5% warmup of total steps
   weight_decay: 0.01
