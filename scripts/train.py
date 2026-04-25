@@ -221,7 +221,7 @@ def main(config_path, resume=False, checkpoint_dir=None):
     batch_size     = cfg["training"]["per_device_train_batch_size"]
     grad_accum     = cfg["training"]["gradient_accumulation_steps"]
     num_epochs     = cfg["training"]["num_train_epochs"]
-    lr             = cfg["training"]["learning_rate"]
+    lr             = float(cfg["training"]["learning_rate"])
     warmup_ratio   = cfg["training"].get("warmup_ratio", 0.05)
     weight_decay   = cfg["training"]["weight_decay"]
     optimizer      = cfg["training"]["optimizer"]
