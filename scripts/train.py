@@ -12,11 +12,11 @@ Usage:
     python scripts/train.py --config configs/train.yaml --resume --checkpoint_dir outputs/checkpoint-epoch-2
 """
 
-import os, json, argparse
+import os, json, argparse, time
 import yaml, pandas as pd, torch
 from datasets import Dataset
 from sklearn.metrics import accuracy_score, classification_report
-from transformers import EarlyStoppingCallback
+from transformers import EarlyStoppingCallback, TrainerCallback
 
 
 def load_config(path):
@@ -28,6 +28,71 @@ def df_to_dataset(df):
 
 def is_bf16():
     return torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Progress Bar Callback — works in Kaggle commit (background) log mode
+# ──────────────────────────────────────────────────────────────────────────────
+class TextProgressCallback(TrainerCallback):
+    """
+    Prints a Unicode block progress bar on every logging step.
+    Example output:
+      [Epoch 1/8 | Step  138/ 552] ████████████░░░░░░░░░░░░  50% | Loss: 1.2345 | ⏱ 00:12:34
+    """
+    BAR_LEN = 24
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        self._total_steps = state.max_steps
+        self._start_time  = time.time()
+        print(f"\n{'─'*62}")
+        print(f"  🚀 Training started | Total steps: {self._total_steps}")
+        print(f"{'─'*62}")
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None or state.max_steps == 0:
+            return
+
+        step      = state.global_step
+        total     = state.max_steps
+        epoch     = state.epoch or 0
+        num_epochs = args.num_train_epochs
+
+        loss      = logs.get("loss", logs.get("train_loss", None))
+        lr        = logs.get("learning_rate", None)
+
+        filled    = int(self.BAR_LEN * step / total)
+        bar       = "█" * filled + "░" * (self.BAR_LEN - filled)
+        pct       = step / total * 100
+
+        elapsed   = time.time() - self._start_time
+        h, rem    = divmod(int(elapsed), 3600)
+        m, s      = divmod(rem, 60)
+        time_str  = f"{h:02d}:{m:02d}:{s:02d}"
+
+        loss_str  = f"Loss: {loss:.4f}" if loss is not None else ""
+        lr_str    = f"| LR: {lr:.2e}" if lr is not None else ""
+
+        print(
+            f"  [Epoch {epoch:.0f}/{num_epochs:.0f} | Step {step:4d}/{total}] "
+            f"{bar} {pct:5.1f}% | {loss_str} {lr_str} | ⏱ {time_str}",
+            flush=True,
+        )
+
+    def on_evaluate(self, args, state, control, metrics=None, **kwargs):
+        if metrics:
+            val_loss = metrics.get("eval_loss", None)
+            if val_loss:
+                print(f"  {'─'*58}")
+                print(f"  📊 Validation Loss: {val_loss:.4f} (Epoch {state.epoch:.0f} done)")
+                print(f"  {'─'*58}")
+
+    def on_train_end(self, args, state, control, **kwargs):
+        elapsed = time.time() - self._start_time
+        h, rem  = divmod(int(elapsed), 3600)
+        m, s    = divmod(rem, 60)
+        print(f"\n{'─'*62}")
+        print(f"  ✅ Training finished! Total time: {h:02d}:{m:02d}:{s:02d}")
+        print(f"{'─'*62}\n")
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Evaluation
@@ -270,8 +335,8 @@ def main(config_path, resume=False, checkpoint_dir=None):
         dataset_num_proc=2,
     )
 
-    # Early Stopping: dừng sớm nếu val_loss không cải thiện sau N epochs
-    callbacks = []
+    # Callbacks: TextProgressBar (always) + EarlyStopping (if val set exists)
+    callbacks = [TextProgressCallback()]
     if has_val:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=patience))
         print(f"  EarlyStopping enabled (patience={patience} epochs)")
