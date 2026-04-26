@@ -1,10 +1,10 @@
-# Training configuration — Kaggle T4 x2 GPU (Unsloth uses single GPU only)
-# Model: Llama-3.1-8B-Instruct (4-bit) — strongest model that fits T4 (15GB VRAM)
+# Training configuration — Kaggle T4 GPU
+# Model: Llama-3.2-3B-Instruct (4-bit) — fast & efficient for intent classification
 
 model:
-  name: "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit"   # 8B params, ~10-12GB VRAM
-  max_seq_length: 768                                      # Full prompt ~515 tokens, 768 an toàn và nhanh hơn 1024
-  load_in_4bit: true                                       # QLoRA: 4-bit base + float16 adapters
+  name: "unsloth/Llama-3.2-3B-Instruct-bnb-4bit"           # 3B params, ~4-5GB VRAM
+  max_seq_length: 768                                        # Full prompt ~515 tokens, 768 an toàn
+  load_in_4bit: true                                         # QLoRA: 4-bit base + float16 adapters
 
 lora:
   r: 32                       # Higher rank = more capacity = better accuracy
@@ -21,8 +21,8 @@ lora:
     - down_proj
 
 training:
-  per_device_train_batch_size: 4    # Tăng từ 2→4 để tận dụng GPU song song, nhanh ~1.5x
-  gradient_accumulation_steps: 4    # Giảm từ 8→4 → Effective batch = 4 x 4 = 16 (giữ nguyên)
+  per_device_train_batch_size: 8    # 3B model nhẹ, tăng batch để tận dụng GPU tối đa
+  gradient_accumulation_steps: 2    # Effective batch = 8 x 2 = 16 (giữ nguyên)
   num_train_epochs: 5              # Giảm từ 8→3, model hội tụ rất nhanh (loss=0.05 sau epoch 1)
   learning_rate: 2e-4              # Tăng từ 5e-5→2e-4 (Unsloth recommended) cho 77 classes
   warmup_ratio: 0.05               # 5% warmup of total steps
