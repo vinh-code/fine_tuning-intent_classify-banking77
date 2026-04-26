@@ -23,7 +23,7 @@ lora:
 training:
   per_device_train_batch_size: 4    # Tăng từ 2→4 để tận dụng GPU song song, nhanh ~1.5x
   gradient_accumulation_steps: 4    # Giảm từ 8→4 → Effective batch = 4 x 4 = 16 (giữ nguyên)
-  num_train_epochs: 3              # Giảm từ 8→3, model hội tụ rất nhanh (loss=0.05 sau epoch 1)
+  num_train_epochs: 5              # Giảm từ 8→3, model hội tụ rất nhanh (loss=0.05 sau epoch 1)
   learning_rate: 2e-4              # Tăng từ 5e-5→2e-4 (Unsloth recommended) cho 77 classes
   warmup_ratio: 0.05               # 5% warmup of total steps
   weight_decay: 0.01
