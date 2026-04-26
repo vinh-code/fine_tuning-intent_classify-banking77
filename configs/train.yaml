@@ -3,7 +3,7 @@
 
 model:
   name: "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit"   # 8B params, ~10-12GB VRAM
-  max_seq_length: 512                                      # Training samples ~100 tokens (short prompt), eval ~900 tokens
+  max_seq_length: 768                                      # Full prompt ~515 tokens, 768 an toàn và nhanh hơn 1024
   load_in_4bit: true                                       # QLoRA: 4-bit base + float16 adapters
 
 lora:
