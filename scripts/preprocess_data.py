@@ -81,7 +81,7 @@ def format_df(df, label2id):
 
 
 def build_system_prompt(intent_list: list) -> str:
-    """Build the system prompt containing all valid intent labels."""
+    """Build the FULL system prompt containing all valid intent labels (for inference)."""
     intents_str = "\n".join(f"- {intent}" for intent in intent_list)
     return (
         f"You are a banking intent classifier. "
@@ -89,6 +89,20 @@ def build_system_prompt(intent_list: list) -> str:
         f"following {len(intent_list)} intent categories:\n"
         f"{intents_str}\n\n"
         f"Respond with ONLY the intent name, nothing else."
+    )
+
+
+def build_training_system_prompt() -> str:
+    """Build a SHORT system prompt for training (no intent list).
+    
+    The model learns the text→intent mapping from the training data itself.
+    Listing all 77 intents wastes ~900 tokens per sample, making training 4x slower.
+    The full intent list is only needed at inference time.
+    """
+    return (
+        "You are a banking intent classifier. "
+        "Classify the customer query into the correct intent category. "
+        "Respond with ONLY the intent name, nothing else."
     )
 
 
@@ -129,9 +143,12 @@ def main(config_path: str):
     print(f"\n[2/5] Building label mappings for all intents...")
     intent_set, id2label, label2id = build_label_mappings(raw_train_df)
     num_intents = len(intent_set)
-    # Build ordered intent list & system prompt (used in every example)
-    intent_list   = [id2label[i] for i in range(len(id2label))]
-    system_prompt = build_system_prompt(intent_list)
+    # Build ordered intent list & system prompts
+    intent_list          = [id2label[i] for i in range(len(id2label))]
+    train_system_prompt  = build_training_system_prompt()       # SHORT (~20 tokens)
+    test_system_prompt   = build_system_prompt(intent_list)     # FULL  (~900 tokens)
+    print(f"  Training prompt tokens (approx): ~{len(train_system_prompt.split())} words")
+    print(f"  Inference prompt tokens (approx): ~{len(test_system_prompt.split())} words")
 
     # ── 3. Format data ────────────────────────────────────────────────────
     print("\n[3/5] Normalizing data...")
@@ -142,13 +159,15 @@ def main(config_path: str):
 
     # ── 4. Add label names and SFT prompts (ChatML format) ────────────────
     print("\n[4/5] Adding label names and ChatML-formatted prompts...")
+    # Train/Val: dùng SHORT prompt → mỗi sample ~100 tokens → train nhanh 4x
     for rec in train_records:
         rec["label_name"] = id2label[rec["label_id"]]
-        rec["prompt"]     = build_sft_prompt(rec["text"], rec["label_name"], system_prompt)
+        rec["prompt"]     = build_sft_prompt(rec["text"], rec["label_name"], train_system_prompt)
 
+    # Test: dùng FULL prompt (có danh sách 77 intents) → dùng khi evaluate
     for rec in test_records:
         rec["label_name"] = id2label[rec["label_id"]]
-        rec["prompt"]     = build_sft_prompt(rec["text"], rec["label_name"], system_prompt)
+        rec["prompt"]     = build_sft_prompt(rec["text"], rec["label_name"], test_system_prompt)
 
 
     # ── 5. Split train → train + val (stratified) ─────────────────────────
