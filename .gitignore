@@ -1,1 +1,30 @@
-banking_intent_kaggle.ipynb
+# Python virtual environment
+venv/
+env/
+.env
+
+# Cache files
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Model checkpoints and logs
+outputs/
+model_checkpoint/
+model_best/
+runs/
+*.safetensors
+*.bin
+
+# Unsloth/HuggingFace cache
+.cache/
+.huggingface/
+unsloth_compiled_cache/
+
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
+*.ipynb_checkpoints/
+*.ipynb

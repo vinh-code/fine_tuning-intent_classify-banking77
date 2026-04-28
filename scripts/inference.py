@@ -159,25 +159,46 @@ class IntentClassification:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run banking intent inference on a single message."
+        description="Run banking intent inference."
     )
     parser.add_argument(
         "--config", type=str, default="configs/inference.yaml",
         help="Path to the inference YAML config file."
     )
     parser.add_argument(
-        "--input", type=str, required=True,
-        help="Input banking query message to classify."
+        "--input", type=str, default=None,
+        help="Input banking query message to classify (optional). If not provided, starts interactive mode."
     )
     args = parser.parse_args()
 
-    clf    = IntentClassification(model_path=args.config)
-    result = clf(args.input)
+    clf = IntentClassification(model_path=args.config)
 
-    print(f"\n{'='*50}")
-    print(f"  Input  : {args.input}")
-    print(f"  Intent : {result}")
-    print(f"{'='*50}")
+    if args.input:
+        # Single execution mode
+        result = clf(args.input)
+        print(f"\n{'='*50}")
+        print(f"  Input  : {args.input}")
+        print(f"  Intent : {result}")
+        print(f"{'='*50}")
+    else:
+        # Interactive chat mode
+        print(f"\n{'='*50}")
+        print("  🤖 Banking Intent Classification - Interactive Mode")
+        print("  Type 'quit' or 'exit' to stop.")
+        print(f"{'='*50}")
+        while True:
+            try:
+                user_input = input("\n🧑 Customer: ")
+                if user_input.lower() in ["quit", "exit"]:
+                    break
+                if not user_input.strip():
+                    continue
+                
+                result = clf(user_input)
+                print(f"🤖 Intent  : \033[92m{result}\033[0m")
+            except KeyboardInterrupt:
+                break
+        print("\nGoodbye!")
 
 
 if __name__ == "__main__":
